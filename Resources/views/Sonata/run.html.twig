@@ -1,0 +1,4 @@
+{% if admin.hasRoute('run') and  not object.isRunning() %}
+    <a class="btn btn-sm btn-default view_link" href="{{ admin.generateObjectUrl('run', object) }}">
+        <i class="fa  fa-window-restore" aria-hidden="true"></i> {{ 'Run'|trans({}, 'SonataAdminBundle') }}</a>
+{% endif %}

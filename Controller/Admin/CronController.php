@@ -66,6 +66,28 @@ class CronController extends CRUDController
         return new RedirectResponse($this->admin->generateUrl('list'));
     }
 
+    /**
+     * @param null $id
+     * @return RedirectResponse
+     * @author Chris Bednarczyk <chris@tourradar.com>
+     */
+    public function runAction($id = null)
+    {
+        /** @var Cron $cron */
+        $cron = $this->admin->getSubject();
+
+        $em = $this->get("doctrine.orm.entity_manager");
+        $cron->setNextRunDate(new \DateTime("1993-06-11"));
+        $em->flush();
+
+        $this->getRequest()
+            ->getSession()
+            ->getFlashBag()
+            ->add("success", "Cron {$cron->getName()} added to queue with high priority");
+
+
+        return new RedirectResponse($this->admin->generateUrl('list'));
+    }
 
     public function showAction($id = null)
     {

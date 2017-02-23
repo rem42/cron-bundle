@@ -37,6 +37,7 @@ class CronAdmin extends AbstractAdmin
 
         $collection->add("logs", "{$this->getRouterIdParameter()}/logs");
         $collection->add("kill", "{$this->getRouterIdParameter()}/kill");
+        $collection->add("run", "{$this->getRouterIdParameter()}/run");
     }
 
 
@@ -147,6 +148,9 @@ class CronAdmin extends AbstractAdmin
                     ],
                     'kill' => [
                         'template' => 'BordeuxCronBundle::Sonata/kill.html.twig'
+                    ],
+                    'run' => [
+                        'template' => 'BordeuxCronBundle::Sonata/run.html.twig'
                     ]
                 ]
             ]);
