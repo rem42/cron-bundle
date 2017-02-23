@@ -142,8 +142,6 @@ class CronCommand extends ContainerAwareCommand
             }
         }
 
-        sleep(10);
-
         $end = microtime(true);
         $duration = $end - $start;
 

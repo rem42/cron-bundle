@@ -10,6 +10,7 @@ use Sonata\AdminBundle\Admin\AdminInterface;
 use Sonata\AdminBundle\Datagrid\DatagridMapper;
 use Sonata\AdminBundle\Datagrid\ListMapper;
 use Sonata\AdminBundle\Form\FormMapper;
+use Sonata\AdminBundle\Route\RouteCollection;
 
 
 /**
@@ -30,28 +31,33 @@ class CronAdmin extends AbstractAdmin
      */
     protected $baseRouteName = "cron";
 
+    protected function configureRoutes(RouteCollection $collection)
+    {
+        parent::configureRoutes($collection);
+
+        $collection->add("logs", "{$this->getRouterIdParameter()}/logs");
+    }
+
+
     // Fields to be shown on create/edit forms
     protected function configureFormFields(FormMapper $formMapper)
     {
 
-
-        /** @var Cron $cron */
-        $cron = $this->getSubject();
 
 
         $formMapper
             ->add("name")
             ->add("description")
             ->add("enabled")
-            ->add('command', "choice", array(
+            ->add('command', "choice", [
                 'choices' => array_flip($this->getCommandList()),
-            ))
+            ])
             ->add('arguments')
             ->add('interval')
             ->add('nextRunDate')
-            ->setHelps(array(
+            ->setHelps([
                 'interval' => "<a href='http://php.net/manual/pl/function.strtotime.php' target='_blank' rel='noopener noreferrer'>More about interval</a>",
-            ));
+            ]);
 
 
     }
@@ -89,7 +95,7 @@ class CronAdmin extends AbstractAdmin
 
         $list = [];
         foreach ($commandsList['commands'] as $item) {
-            if ($item["name"] == "xv:cron") {
+            if ($item["name"] == "bordeux:cron:run") {
                 continue;
             }
             $list[$item["name"]] = implode(",", $item["usage"]);
@@ -109,7 +115,8 @@ class CronAdmin extends AbstractAdmin
             ->add('arguments')
             ->add('interval')
             ->add('createDate')
-            ->add('lastRunDate');
+            ->add('lastRunDate')
+            ->add('errors');
     }
 
     // Fields to be shown on lists
@@ -129,11 +136,16 @@ class CronAdmin extends AbstractAdmin
                 'editable' => true
             ])
             ->add('running', 'boolean', ['template' => 'BordeuxCronBundle::Sonata/status.html.twig'])
-            ->add('_action', 'actions', array(
-                'actions' => array(
-                    'edit' => array(),
-                )
-            ));
+            ->add('errors')
+            ->add('lastDuration')
+            ->add('_action', 'actions', [
+                'actions' => [
+                    'edit' => [],
+                    'logs' => [
+                        'template' => 'BordeuxCronBundle::Sonata/logs.html.twig'
+                    ]
+                ]
+            ]);
     }
 
 

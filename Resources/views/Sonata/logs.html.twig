@@ -1,0 +1,4 @@
+{% if  admin.hasRoute('logs') %}
+    <a class="btn btn-sm btn-default view_link" href="{{ admin.generateObjectUrl('logs', object) }}">
+        <i class="fa fa-table" aria-hidden="true"></i> {{ 'Logs'|trans({}, 'SonataAdminBundle') }}</a>
+{% endif %}
