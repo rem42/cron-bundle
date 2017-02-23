@@ -1,0 +1,14 @@
+services:
+    bordeux.cron.sonata.cron:
+        class: Bordeux\Bundle\CronBundle\Admin\CronAdmin
+        arguments: [~, Bordeux\Bundle\CronBundle\Entity\Cron, BordeuxCronBundle:Admin/Cron]
+        tags:
+            - { name: sonata.admin, manager_type: orm, label: "Cron", group: "Settings"}
+        calls:
+            - [addChild, ['@bordeux.cron.sonata.cron.log']]
+
+    bordeux.cron.sonata.cron.log:
+        class: Bordeux\Bundle\CronBundle\Admin\Cron\LogAdmin
+        arguments: [~, Bordeux\Bundle\CronBundle\Entity\Cron\Log, BordeuxCronBundle:Admin/Cron/Log]
+        tags:
+            - { name: sonata.admin, manager_type: orm, show_in_dashboard : false, label: "Logs", group: "Settings"}
