@@ -2,6 +2,8 @@
 
 namespace Bordeux\Bundle\CronBundle\Repository;
 
+use Bordeux\Bundle\CronBundle\Entity\Cron;
+
 /**
  * CronLogRepository
  *
@@ -10,4 +12,21 @@ namespace Bordeux\Bundle\CronBundle\Repository;
  */
 class CronLogRepository extends \Doctrine\ORM\EntityRepository
 {
+
+    /**
+     * @param Cron $cron
+     * @return int
+     * @author Chris Bednarczyk <chris@tourradar.com>
+     */
+    public function getErrorCount(Cron $cron)
+    {
+
+        return $this->createQueryBuilder("a")
+            ->select("COUNT(a.id) as _count")
+            ->andWhere("a.cron = :cron")
+            ->andWhere("a.success = false")
+            ->setParameter(":cron", $cron)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }

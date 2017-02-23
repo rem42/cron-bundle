@@ -3,6 +3,7 @@
 namespace Bordeux\Bundle\CronBundle\Command;
 
 use Bordeux\Bundle\CronBundle\Entity\Cron;
+use Bordeux\Bundle\CronBundle\Repository\CronLogRepository;
 use Bordeux\Bundle\CronBundle\Repository\CronRepository;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
@@ -87,6 +88,17 @@ class CronCommand extends ContainerAwareCommand
             ->getRepository(Cron::class);
     }
 
+
+    /**
+     * @return CronLogRepository
+     * @author Chris Bednarczyk <chris@tourradar.com>
+     */
+    protected function getCronLogRepository()
+    {
+        return $this->getEm()
+            ->getRepository(Cron\Log::class);
+    }
+
     /**
      * @param InputInterface $input
      * @param OutputInterface $output
@@ -152,8 +164,11 @@ class CronCommand extends ContainerAwareCommand
         $task->setNextRunDate(new \DateTime($task->getInterval()));
         $task->setLastDuration($duration);
 
-        !$process->isSuccessful() && $task->setErrors(
-            ($task->getErrors() || 0) + 1
+        $task->setErrors(
+            $this->getCronLogRepository()
+            ->getErrorCount(
+                $task
+            )
         );
 
 

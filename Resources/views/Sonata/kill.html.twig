@@ -1,0 +1,4 @@
+{% if admin.hasRoute('kill') and object.isRunning() %}
+    <a class="btn btn-sm btn-default view_link" href="{{ admin.generateObjectUrl('kill', object) }}">
+        <i class="fa fa-table" aria-hidden="true"></i> {{ 'Kill'|trans({}, 'SonataAdminBundle') }}</a>
+{% endif %}

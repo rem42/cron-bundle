@@ -2,6 +2,7 @@
 
 namespace Bordeux\Bundle\CronBundle\Controller\Admin;
 
+use Bordeux\Bundle\CronBundle\Entity\Cron;
 use Sonata\AdminBundle\Controller\CRUDController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -28,6 +29,41 @@ class CronController extends CRUDController
         ]);
 
         return new RedirectResponse($url);
+    }
+
+
+    /**
+     * @param null $id
+     * @return RedirectResponse
+     * @author Chris Bednarczyk <chris@tourradar.com>
+     */
+    public function killAction($id = null)
+    {
+        /** @var Cron $cron */
+        $cron = $this->admin->getSubject();
+
+
+
+        if ($cron->isRunning()) {
+            $em = $this->get("doctrine.orm.entity_manager");
+            exec("kill {$cron->getPid()}");
+            $cron->setPid(null);
+            $cron->setRunning(false);
+            $em->flush($cron);
+            $this->getRequest()
+                ->getSession()
+                ->getFlashBag()
+                ->add("success", "Successful killed {$cron->getName()}");
+        }else{
+            $this->getRequest()
+                ->getSession()
+                ->getFlashBag()
+                ->add("warning", "Unable to kill {$cron->getName()}, process is not running");
+        }
+
+
+
+        return new RedirectResponse($this->admin->generateUrl('list'));
     }
 
 
