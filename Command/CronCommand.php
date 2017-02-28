@@ -5,6 +5,7 @@ namespace Bordeux\Bundle\CronBundle\Command;
 use Bordeux\Bundle\CronBundle\Entity\Cron;
 use Bordeux\Bundle\CronBundle\Repository\CronLogRepository;
 use Bordeux\Bundle\CronBundle\Repository\CronRepository;
+use Doctrine\DBAL\LockMode;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -29,7 +30,6 @@ class CronCommand extends ContainerAwareCommand
         '_sort_order' => 'DESC',
         '_per_page' => 32,
     ];
-
 
 
     /**
@@ -99,6 +99,35 @@ class CronCommand extends ContainerAwareCommand
             ->getRepository(Cron\Log::class);
     }
 
+
+    public function getNextTask()
+    {
+        $this->getEm()->beginTransaction();
+        try {
+            $task = $this->getCronRepository()
+                ->getNextTask();
+
+            if (!$task) {
+                $this->getEm()->commit();
+                return null;
+            }
+
+            $this->getEm()->lock($task, LockMode::PESSIMISTIC_READ);
+            $this->getEm()->lock($task, LockMode::PESSIMISTIC_WRITE);
+
+            $task->setRunning(true);
+            $task->setLastRunDate(new \DateTime());
+            $this->getEm()->flush($task);
+            $this->getEm()->commit();
+
+            return $task;
+        } catch (\Exception $e) {
+            $this->getEm()->rollback();
+
+            return $this->getNextTask();
+        }
+    }
+
     /**
      * @param InputInterface $input
      * @param OutputInterface $output
@@ -115,21 +144,15 @@ class CronCommand extends ContainerAwareCommand
         $environment = $this->getContainer()
             ->getParameter("kernel.environment");
 
-
-        $task = $this->getCronRepository()
-            ->getNextTask();
-
         $phpBin = (new PhpExecutableFinder)->find();
 
+
+        $task = $this->getNextTask();
 
         if (!$task) {
             $output->writeln("No tasks to execute...");
             return;
         }
-
-        $task->setRunning(true);
-        $task->setLastRunDate(new \DateTime());
-        $this->getEm()->flush($task);
 
         $log = new Cron\Log();
         $log->setCron($task);
@@ -143,8 +166,6 @@ class CronCommand extends ContainerAwareCommand
 
         $process = new Process("{$phpBin} {$consolePath} {$task->getCommand()} {$task->getArguments()} --env={$environment}");
         $process->start();
-
-
 
 
         while ($process->isRunning()) {
@@ -166,9 +187,9 @@ class CronCommand extends ContainerAwareCommand
 
         $task->setErrors(
             $this->getCronLogRepository()
-            ->getErrorCount(
-                $task
-            )
+                ->getErrorCount(
+                    $task
+                )
         );
 
 
