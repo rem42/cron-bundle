@@ -155,15 +155,17 @@ class CronCommand extends ContainerAwareCommand
         $connection = $this->getEm()
             ->getConnection();
 
-        $count = $connection->executeUpdate($query, [
-            ":lockColumn" => false,
-            ":lastRunDateColumn" => $cron->getLastRunDate(),
-            ":newUpdateDate" => new \DateTime(),
-            ":id" => $cron->getId(),
-        ]);
+        $statement = $connection->prepare($query);
+
+        $statement->bindValue(':lockColumn', false, \PDO::PARAM_BOOL);
+        $statement->bindValue(':id', $cron->getId(), \PDO::PARAM_INT);
+        $statement->bindValue(':lastRunDateColumn', $cron->getLastRunDate(), $cron->getLastRunDate() ? "datetime" : \PDO::PARAM_NULL);
+        $statement->bindValue(':newUpdateDate', new \DateTime(), "datetime");
+        $statement->execute();
+
 
         $this->getEm()->refresh($cron);
-        return !!$count;
+        return !!$statement->rowCount();
     }
 
     /**
