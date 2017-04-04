@@ -144,7 +144,7 @@ class CronCommand extends ContainerAwareCommand
             UPDATE 
                 {$table}
             SET
-              {$lockColumn} =  :lockColumn,
+              {$lockColumn} =  :lockValue,
               {$lastRunDateColumn} = :newUpdateDate
             WHERE
               id = :id
@@ -158,6 +158,7 @@ class CronCommand extends ContainerAwareCommand
         try {
             $connection->beginTransaction();
             $statement = $connection->prepare($query);
+            $statement->bindValue(':lockValue', true, \PDO::PARAM_BOOL);
             $statement->bindValue(':lockColumn', false, \PDO::PARAM_BOOL);
             $statement->bindValue(':id', $cron->getId(), \PDO::PARAM_INT);
             $statement->bindValue(':lastRunDateColumn', $cron->getLastRunDate(), $cron->getLastRunDate() ? "datetime" : \PDO::PARAM_NULL);
