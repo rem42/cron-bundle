@@ -137,6 +137,8 @@ class CronCommand extends ContainerAwareCommand
         $lockColumn = $classMetaData->getColumnName('running');
         $lastRunDateColumn = $classMetaData->getColumnName('lastRunDate');
 
+        $connection = $this->getEm()
+            ->getConnection();
 
         $query = "
             UPDATE 
@@ -152,20 +154,24 @@ class CronCommand extends ContainerAwareCommand
               {$lastRunDateColumn} = :lastRunDateColumn
         ";
 
-        $connection = $this->getEm()
-            ->getConnection();
 
-        $statement = $connection->prepare($query);
-
-        $statement->bindValue(':lockColumn', false, \PDO::PARAM_BOOL);
-        $statement->bindValue(':id', $cron->getId(), \PDO::PARAM_INT);
-        $statement->bindValue(':lastRunDateColumn', $cron->getLastRunDate(), $cron->getLastRunDate() ? "datetime" : \PDO::PARAM_NULL);
-        $statement->bindValue(':newUpdateDate', new \DateTime(), "datetime");
-        $statement->execute();
-
+        try {
+            $connection->beginTransaction();
+            $statement = $connection->prepare($query);
+            $statement->bindValue(':lockColumn', false, \PDO::PARAM_BOOL);
+            $statement->bindValue(':id', $cron->getId(), \PDO::PARAM_INT);
+            $statement->bindValue(':lastRunDateColumn', $cron->getLastRunDate(), $cron->getLastRunDate() ? "datetime" : \PDO::PARAM_NULL);
+            $statement->bindValue(':newUpdateDate', new \DateTime(), "datetime");
+            $statement->execute();
+            $count = $statement->rowCount();
+            $connection->commit();
+        }catch (\Exception $e) {
+            $connection->rollBack();
+            $count = 0;
+        }
 
         $this->getEm()->refresh($cron);
-        return !!$statement->rowCount();
+        return !!$count;
     }
 
     /**
@@ -198,7 +204,7 @@ class CronCommand extends ContainerAwareCommand
         $log->setCron($task);
         $log->setStartDate(new \DateTime());
         $this->getEm()->persist($log);
-        $this->getEm()->flush();
+        $this->getEm()->flush([$log]);
 
 
         $output->writeln("Start running {$task->getName()} task");
