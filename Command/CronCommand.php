@@ -100,32 +100,70 @@ class CronCommand extends ContainerAwareCommand
     }
 
 
+    /**
+     * @return Cron|null
+     * @author Chris Bednarczyk <chris@tourradar.com>
+     */
     public function getNextTask()
     {
-        $this->getEm()->beginTransaction();
-        try {
-            $task = $this->getCronRepository()
-                ->getNextTask();
+        $task = $this->getCronRepository()
+            ->getNextTask();
 
-            if (!$task) {
-                $this->getEm()->commit();
-                return null;
-            }
 
-            $this->getEm()->lock($task, LockMode::PESSIMISTIC_READ);
-            $this->getEm()->lock($task, LockMode::PESSIMISTIC_WRITE);
-
-            $task->setRunning(true);
-            $task->setLastRunDate(new \DateTime());
-            $this->getEm()->flush($task);
-            $this->getEm()->commit();
-
-            return $task;
-        } catch (\Exception $e) {
-            $this->getEm()->rollback();
-
-            return $this->getNextTask();
+        if (!$task) {
+            return null;
         }
+
+
+        if ($this->lockTask($task)) {
+            return $task;
+        }
+
+        return $this->getNextTask();
+    }
+
+
+    /**
+     * @param Cron $cron
+     * @return bool
+     * @author Chris Bednarczyk <chris@tourradar.com>
+     */
+    public function lockTask(Cron $cron)
+    {
+        $classMetaData = $this->getEm()
+            ->getClassMetadata(Cron::class);
+
+        $table = $classMetaData->getTableName();
+        $lockColumn = $classMetaData->getColumnName('running');
+        $lastRunDateColumn = $classMetaData->getColumnName('lastRunDate');
+
+
+        $query = "
+            UPDATE 
+                {$table}
+            SET
+              {$lockColumn} =  :lockColumn,
+              {$lastRunDateColumn} = :newUpdateDate
+            WHERE
+              id = :id
+            AND
+              {$lockColumn} =  :lockColumn
+            AND
+              {$lastRunDateColumn} = :lastRunDateColumn
+        ";
+
+        $connection = $this->getEm()
+            ->getConnection();
+
+        $count = $connection->executeUpdate($query, [
+            ":lockColumn" => false,
+            ":lastRunDateColumn" => $cron->getLastRunDate(),
+            ":newUpdateDate" => new \DateTime(),
+            ":id" => $cron->getId(),
+        ]);
+
+        $this->getEm()->refresh($cron);
+        return !!$count;
     }
 
     /**
