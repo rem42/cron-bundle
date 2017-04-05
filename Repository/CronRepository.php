@@ -29,7 +29,7 @@ class CronRepository extends \Doctrine\ORM\EntityRepository
                 new \DateTime()
             )
             ->setMaxResults(1)
-            ->orderBy("t.nextRunDate", "ASC")
+            ->orderBy("t.lastRunDate", "ASC")
             ->getQuery()
             ->getOneOrNullResult();
     }

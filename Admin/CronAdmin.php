@@ -56,6 +56,7 @@ class CronAdmin extends AbstractAdmin
             ])
             ->add('arguments')
             ->add('interval')
+            ->add('lastRunDate')
             ->add('nextRunDate')
             ->setHelps([
                 'interval' => "<a href='http://php.net/manual/pl/function.strtotime.php' target='_blank' rel='noopener noreferrer'>More about interval</a>",
