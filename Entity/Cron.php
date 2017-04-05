@@ -135,6 +135,9 @@ class Cron
     {
         $this->createDate = new \DateTime();
         $this->nextRunDate = new \DateTime();
+        $this->lastRunDate = new \DateTime();
+        $this->lastRunDate->setDate(1993, 01, 01);
+        
         $this->logs = new ArrayCollection();
         $this->interval = "+1 day";
         $this->enabled = true;
