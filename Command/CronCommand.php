@@ -166,7 +166,7 @@ class CronCommand extends ContainerAwareCommand
             $statement->execute();
             $count = $statement->rowCount();
             $connection->commit();
-        }catch (\Exception $e) {
+        } catch (\Exception $e) {
             $connection->rollBack();
             $count = 0;
         }
@@ -201,6 +201,12 @@ class CronCommand extends ContainerAwareCommand
             return;
         }
 
+
+        /** @var CronLogRepository $logRepository */
+        $logRepository = $this->getEm()
+            ->getRepository(Cron\Log::class);
+
+
         $log = new Cron\Log();
         $log->setCron($task);
         $log->setStartDate(new \DateTime());
@@ -215,16 +221,46 @@ class CronCommand extends ContainerAwareCommand
         $process->start();
 
 
+        $outputBuffer = '';
+
+
+        $lastUpdateTime = time();
         while ($process->isRunning()) {
             if ($task->getPid() !== $process->getPid()) {
                 $task->setPid($process->getPid());
                 $this->getEm()->flush($task);
+            }
+
+
+            $outputs = [
+                $process->getIncrementalOutput(),
+                $process->getIncrementalErrorOutput()
+            ];
+
+            foreach ($outputs as $key => $item) {
+                if (!empty(trim($item))) {
+                    $outputBuffer .= $item;
+                }
+            }
+
+
+            if (!empty($outputBuffer) && time() - $lastUpdateTime > 5) {
+                try {
+                    $logRepository->appendLog(
+                        $log,
+                        $outputBuffer
+                    );
+                    $outputBuffer = '';
+                } catch (\Exception $e) {
+                    $output->writeln($e->getMessage());
+                }
             }
         }
 
         $end = microtime(true);
         $duration = $end - $start;
 
+        $this->getEm()->refresh($log);
         $this->getEm()->refresh($task);
 
         $task->setPid(null);
@@ -245,7 +281,6 @@ class CronCommand extends ContainerAwareCommand
         $log->setOutput($process->getOutput() . $process->getErrorOutput());
         $log->setDuration($duration);
         $log->setResponseCode($process->getExitCode());
-
 
         $this->getEm()->flush();
 

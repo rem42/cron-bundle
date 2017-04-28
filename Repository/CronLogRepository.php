@@ -29,4 +29,41 @@ class CronLogRepository extends \Doctrine\ORM\EntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    /**
+     * @param Cron\Log $log
+     * @param $output
+     * @author Chris Bednarczyk <chris@tourradar.com>
+     */
+    public function appendLog(Cron\Log $log, $output)
+    {
+
+
+        $connection = $this->getEntityManager()
+            ->getConnection();
+
+        $columnName = $this->getClassMetadata()
+            ->getColumnName('output');
+
+        $tableName = $this->getClassMetadata()
+            ->getTableName();
+
+        $id = (int)$log->getId();
+        $outputQuoted = $connection->quote((string)$output);
+
+
+        $query = "
+            UPDATE
+                {$tableName}
+            SET
+              {$columnName} = CONCAT({$columnName}, {$outputQuoted})
+            WHERE
+              id = {$id}
+        ";
+
+        $connection->executeUpdate($query);
+
+
+        return true;
+    }
 }
