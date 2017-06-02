@@ -255,6 +255,7 @@ class CronCommand extends ContainerAwareCommand
                     $output->writeln($e->getMessage());
                 }
             }
+            sleep(1);
         }
 
         $end = microtime(true);
