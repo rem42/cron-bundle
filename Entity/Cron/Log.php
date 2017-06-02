@@ -86,7 +86,7 @@ class Log
     /**
      * @var string
      *
-     * @ORM\Column(name="ignore", type="boolean", options={"default" : 1})
+     * @ORM\Column(name="ignore_log", type="boolean", options={"default" : 1})
      */
     protected $ignore;
 
