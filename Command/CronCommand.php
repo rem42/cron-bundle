@@ -8,6 +8,7 @@ use Bordeux\Bundle\CronBundle\Repository\CronRepository;
 use Doctrine\DBAL\LockMode;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
@@ -21,25 +22,26 @@ class CronCommand extends ContainerAwareCommand
 {
 
     /**
-     * Default values to the datagrid.
-     *
-     * @var array
-     */
-    protected $datagridValues = [
-        '_page' => 1,
-        '_sort_order' => 'DESC',
-        '_per_page' => 32,
-    ];
-
-
-    /**
      * Configuration method
      */
     protected function configure()
     {
         $this
             ->setName('bordeux:cron:run')
-            ->setDescription('Run Crons');
+            ->setDescription('Run Crons')
+            ->addOption(
+                'daemon',
+                'd',
+                InputOption::VALUE_OPTIONAL,
+                'Never stop? Ok',
+                0
+            )->addOption(
+                'sleep',
+                's',
+                InputOption::VALUE_OPTIONAL,
+                'Sleep time in seconds',
+                10
+            );
 
         parent::configure();
     }
@@ -124,64 +126,15 @@ class CronCommand extends ContainerAwareCommand
 
 
     /**
-     * @param Cron $cron
-     * @return bool
-     * @author Chris Bednarczyk <chris@tourradar.com>
-     */
-    public function lockTask(Cron $cron)
-    {
-        $classMetaData = $this->getEm()
-            ->getClassMetadata(Cron::class);
-
-        $table = $classMetaData->getTableName();
-        $lockColumn = $classMetaData->getColumnName('running');
-        $lastRunDateColumn = $classMetaData->getColumnName('lastRunDate');
-
-        $connection = $this->getEm()
-            ->getConnection();
-
-        $query = "
-            UPDATE 
-                {$table}
-            SET
-              {$lockColumn} =  :lockValue,
-              {$lastRunDateColumn} = :newUpdateDate
-            WHERE
-              id = :id
-            AND
-              {$lockColumn} =  :lockColumn
-            AND
-              {$lastRunDateColumn} = :lastRunDateColumn
-        ";
-
-
-        try {
-            $connection->beginTransaction();
-            $statement = $connection->prepare($query);
-            $statement->bindValue(':lockValue', true, \PDO::PARAM_BOOL);
-            $statement->bindValue(':lockColumn', false, \PDO::PARAM_BOOL);
-            $statement->bindValue(':id', $cron->getId(), \PDO::PARAM_INT);
-            $statement->bindValue(':lastRunDateColumn', $cron->getLastRunDate(), $cron->getLastRunDate() ? "datetime" : \PDO::PARAM_NULL);
-            $statement->bindValue(':newUpdateDate', new \DateTime(), "datetime");
-            $statement->execute();
-            $count = $statement->rowCount();
-            $connection->commit();
-        } catch (\Exception $e) {
-            $connection->rollBack();
-            $count = 0;
-        }
-
-        $this->getEm()->refresh($cron);
-        return !!$count;
-    }
-
-    /**
      * @param InputInterface $input
      * @param OutputInterface $output
      * @author Chris Bednarczyk <chris@tourradar.com>
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+
+        $daemon = !!$input->hasOption('daemon');
+        $sleep = (int)$input->getOption('sleep');
 
         $consolePath = static::getConsoleFilePath(
             $this->getContainer()
@@ -193,11 +146,19 @@ class CronCommand extends ContainerAwareCommand
 
         $phpBin = (new PhpExecutableFinder)->find();
 
+        $this->getEm()->clear();
 
         $task = $this->getNextTask();
 
         if (!$task) {
             $output->writeln("No tasks to execute...");
+
+            if ($daemon) {
+                $output->writeln("Sleeping {$sleep}s...");
+                sleep($sleep);
+                return $this->execute($input, $output);
+            }
+
             return;
         }
 
@@ -217,7 +178,9 @@ class CronCommand extends ContainerAwareCommand
         $output->writeln("Start running {$task->getName()} task");
         $start = microtime(true);
 
-        $process = new Process("{$phpBin} {$consolePath} {$task->getCommand()} {$task->getArguments()} --env={$environment}");
+        $process = new Process(
+            "{$phpBin} {$consolePath} {$task->getCommand()} {$task->getArguments()} --env={$environment}"
+        );
         $process->start();
 
 
@@ -255,7 +218,7 @@ class CronCommand extends ContainerAwareCommand
                     $output->writeln($e->getMessage());
                 }
             }
-            sleep(1);
+            sleep(2);
         }
 
         $end = microtime(true);
@@ -287,6 +250,63 @@ class CronCommand extends ContainerAwareCommand
 
         $output->writeln("End running {$task->getName()} task. ");
 
+    }
+
+
+    /**
+     * @param Cron $cron
+     * @return bool
+     * @author Chris Bednarczyk <chris@tourradar.com>
+     */
+    public function lockTask(Cron $cron)
+    {
+        $classMetaData = $this->getEm()
+            ->getClassMetadata(Cron::class);
+
+        $table = $classMetaData->getTableName();
+        $lockColumn = $classMetaData->getColumnName('running');
+        $lastRunDateColumn = $classMetaData->getColumnName('lastRunDate');
+
+        $connection = $this->getEm()
+            ->getConnection();
+
+        $query = "
+            UPDATE 
+                {$table}
+            SET
+              {$lockColumn} =  :lockValue,
+              {$lastRunDateColumn} = :newUpdateDate
+            WHERE
+              id = :id
+            AND
+              {$lockColumn} =  :lockColumn
+            AND
+              {$lastRunDateColumn} = :lastRunDateColumn
+        ";
+
+
+        try {
+            $connection->beginTransaction();
+            $statement = $connection->prepare($query);
+            $statement->bindValue(':lockValue', true, \PDO::PARAM_BOOL);
+            $statement->bindValue(':lockColumn', false, \PDO::PARAM_BOOL);
+            $statement->bindValue(':id', $cron->getId(), \PDO::PARAM_INT);
+            $statement->bindValue(
+                ':lastRunDateColumn'
+                , $cron->getLastRunDate(),
+                $cron->getLastRunDate() ? "datetime" : \PDO::PARAM_NULL
+            );
+            $statement->bindValue(':newUpdateDate', new \DateTime(), "datetime");
+            $statement->execute();
+            $count = $statement->rowCount();
+            $connection->commit();
+        } catch (\Exception $e) {
+            $connection->rollBack();
+            $count = 0;
+        }
+
+        $this->getEm()->refresh($cron);
+        return !!$count;
     }
 
 
