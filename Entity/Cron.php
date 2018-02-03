@@ -76,7 +76,7 @@ class Cron
     /**
      * @var string
      *
-     * @ORM\Column(name="interval", type="string", length=255)
+     * @ORM\Column(name="interval_time", type="string", length=255)
      */
     protected $interval;
 
@@ -136,7 +136,7 @@ class Cron
         $this->createDate = new \DateTime();
         $this->nextRunDate = new \DateTime();
         $this->lastRunDate = new \DateTime();
-        $this->lastRunDate->setDate(1993, 01, 01);
+        $this->lastRunDate->setDate(2018, 01, 01);
         
         $this->logs = new ArrayCollection();
         $this->interval = "+1 day";
