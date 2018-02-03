@@ -26,7 +26,7 @@ class Log
     /**
      * @var Cron
      *
-     * @ORM\ManyToOne(targetEntity="Bordeux\Bundle\CronBundle\Entity\Cron")
+     * @ORM\ManyToOne(targetEntity="Bordeux\Bundle\CronBundle\Entity\Cron", inversedBy="logs")
      * @ORM\JoinColumn(name="cron_task_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
      */
     protected $cron;
