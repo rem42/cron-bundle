@@ -133,7 +133,7 @@ class CronCommand extends ContainerAwareCommand
     protected function execute(InputInterface $input, OutputInterface $output)
     {
 
-        $daemon = !!$input->hasOption('daemon');
+        $daemon = (bool)$input->getOption('daemon');
         $sleep = (int)$input->getOption('sleep');
 
         $consolePath = static::getConsoleFilePath(
